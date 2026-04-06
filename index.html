@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Bowling Lane 🎳</title>
 
 <style>
@@ -10,34 +10,26 @@ html, body {
   margin: 0;
   padding: 0;
   height: 100%;
-  background: linear-gradient(#7f1d1d, #1f2937);
-  font-family: Arial, sans-serif;
-  color: white;
-  overscroll-behavior: none;
+  background: radial-gradient(circle at top, #ffb7d5, #7f1d1d, #1f2937);
+  font-family: "Trebuchet MS", Arial, sans-serif;
+  color: #fff;
 }
 
-#screen {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-#setup {
-  padding: 12px;
+#top {
   text-align: center;
+  padding: 10px;
 }
 
 input {
   padding: 8px;
   margin: 4px;
-  width: 42%;
-  border-radius: 6px;
+  border-radius: 12px;
   border: none;
 }
 
 button {
   padding: 10px 20px;
-  border-radius: 10px;
+  border-radius: 20px;
   border: none;
   background: #ec4899;
   color: white;
@@ -45,180 +37,214 @@ button {
 }
 
 canvas {
-  flex: 1;
   width: 100%;
+  height: calc(100vh - 160px);
+  display: block;
+  background: linear-gradient(#b45309, #92400e);
   touch-action: none;
-  background: #a16207;
 }
 </style>
 </head>
 
 <body>
 
-<div id="screen">
-
-  <!-- PLAYER INPUT -->
+<div id="top">
+  <h1>🎳 Bowling Lane</h1>
   <div id="setup">
-    <input id="p1" placeholder="Player 1 name">
-    <input id="p2" placeholder="Player 2 name"><br>
-    <button onclick="startGame()">Start Bowling 🎳</button>
+    <input id="p1" placeholder="❤️ Player 1 name">
+    <input id="p2" placeholder="💖 Player 2 name"><br>
+    <button onclick="startGame()">Start Game</button>
   </div>
-
-  <!-- GAME -->
-  <canvas id="game"></canvas>
-
+  <div id="info"></div>
 </div>
+
+<canvas id="game"></canvas>
 
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
 function resize() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight - document.getElementById("setup").offsetHeight;
+  canvas.width = canvas.clientWidth;
+  canvas.height = canvas.clientHeight;
 }
 window.addEventListener("resize", resize);
 resize();
 
-/* GAME STATE */
-let names = ["Player 1", "Player 2"];
-let currentPlayer = 0;
+/* GAME RULES */
+const MAX_ROUNDS = 5;
+const CHANCES_PER_PLAYER = 3;
 
+/* STATE */
+let players = ["Player 1","Player 2"];
+let scores = [0,0];
+let round = 1;
+let currentPlayer = 0;
+let chancesLeft = CHANCES_PER_PLAYER;
+
+/* BALL */
 let ball = {
-  x: canvas.width / 2,
-  y: canvas.height - 80,
+  x: canvas.width/2,
+  y: canvas.height - 60,
   r: 16,
   vx: 0,
   vy: 0,
-  spin: 0,
   moving: false
 };
 
-let pins = [];
-let dragging = false;
-let startX = 0, startY = 0;
+/* TOUCH */
+let startX=0, startY=0;
 
 /* PINS */
-function resetPins() {
-  pins = [];
-  const layout = [
+let pins=[];
+
+function resetPins(){
+  pins=[];
+  const layout=[
     [0,0],
-    [-20,20],[20,20],
-    [-40,40],[0,40],[40,40],
-    [-60,60],[-20,60],[20,60],[60,60]
+    [-18,20],[18,20],
+    [-36,40],[0,40],[36,40],
+    [-54,60],[-18,60],[18,60],[54,60]
   ];
-  layout.forEach(p=>{
-    pins.push({
-      x: canvas.width/2 + p[0],
-      y: 80 + p[1],
-      vx: 0,
-      vy: 0,
-      angle: 0,
-      hit: false
-    });
-  });
+  layout.forEach(p=>pins.push({
+    x: canvas.width/2+p[0],
+    y: 80+p[1],
+    hit:false,
+    vx:0, vy:0,
+    angle:0
+  }));
 }
 
-function startGame() {
-  names[0] = document.getElementById("p1").value || "Player 1";
-  names[1] = document.getElementById("p2").value || "Player 2";
-  document.getElementById("setup").style.display = "none";
+function resetBall(){
+  ball.x = canvas.width/2;
+  ball.y = canvas.height - 60;
+  ball.vx = ball.vy = 0;
+  ball.moving = false;
+}
+
+function startGame(){
+  players[0] = document.getElementById("p1").value || "Player 1";
+  players[1] = document.getElementById("p2").value || "Player 2";
+  document.getElementById("setup").style.display="none";
+  updateInfo();
   resetPins();
 }
 
-resetPins();
-
-/* TOUCH CONTROLS */
-canvas.addEventListener("touchstart", e=>{
-  e.preventDefault();
-  if (ball.moving) return;
-  dragging = true;
-  const t = e.touches[0];
-  startX = t.clientX;
-  startY = t.clientY;
+/* TOUCH EVENTS */
+canvas.addEventListener("touchstart",e=>{
+  if(ball.moving) return;
+  const t=e.touches[0];
+  startX=t.clientX;
+  startY=t.clientY;
 });
 
-canvas.addEventListener("touchend", e=>{
-  e.preventDefault();
-  if (!dragging) return;
-  dragging = false;
-  const t = e.changedTouches[0];
-  const dx = startX - t.clientX;
-  const dy = startY - t.clientY;
-  ball.vx = dx * 0.12;
-  ball.vy = dy * 0.2;
-  ball.spin = dx * 0.005;
-  ball.moving = true;
+canvas.addEventListener("touchend",e=>{
+  if(ball.moving) return;
+  const t=e.changedTouches[0];
+  const dx=startX-t.clientX;
+  const dy=startY-t.clientY;
+  ball.vx=dx*0.12;
+  ball.vy=dy*0.18;
+  ball.moving=true;
 });
 
 /* PHYSICS */
-function collide(b,p) {
+function hit(b,p){
   const dx=b.x-p.x, dy=b.y-p.y;
   return Math.sqrt(dx*dx+dy*dy)<b.r+10;
 }
 
-/* DRAW PIN */
 function drawPin(p){
   ctx.save();
   ctx.translate(p.x,p.y);
   ctx.rotate(p.angle);
   ctx.fillStyle="white";
   ctx.beginPath();
-  ctx.moveTo(-5,12);
-  ctx.lineTo(5,12);
-  ctx.lineTo(3,-14);
-  ctx.lineTo(-3,-14);
+  ctx.moveTo(-4,12);
+  ctx.lineTo(4,12);
+  ctx.lineTo(3,-12);
+  ctx.lineTo(-3,-12);
   ctx.fill();
-  ctx.fillStyle="red";
-  ctx.fillRect(-5,-6,10,2);
+  ctx.fillStyle="#ec4899";
+  ctx.fillRect(-4,-5,8,2);
   ctx.restore();
 }
 
-/* MAIN LOOP */
-function loop() {
+function updateInfo(){
+  document.getElementById("info").innerHTML=
+    `💞 Round ${round}/${MAX_ROUNDS} |
+     🎯 ${players[currentPlayer]}'s turn |
+     Chances left: ${chancesLeft}<br>
+     ❤️ ${players[0]}: ${scores[0]} |
+     💖 ${players[1]}: ${scores[1]}`;
+}
+
+/* LOOP */
+function loop(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  if (ball.moving) {
-    ball.x += ball.vx;
-    ball.y += ball.vy;
-    ball.vx += ball.spin;
-    ball.vy *= 0.985;
-    ball.spin *= 0.96;
+  if(ball.moving){
+    ball.x+=ball.vx;
+    ball.y+=ball.vy;
+    ball.vy*=0.98;
 
-    if (ball.y < 0) {
-      resetBall();
+    pins.forEach(p=>{
+      if(!p.hit && hit(ball,p)){
+        p.hit=true;
+        p.vx=ball.vx*1.3;
+        p.vy=ball.vy*1.3;
+        scores[currentPlayer]++;
+      }
+      if(p.hit){
+        p.x+=p.vx;
+        p.y+=p.vy;
+        p.vy+=0.2;
+        p.angle+=p.vx*0.05;
+      }
+    });
+
+    if(ball.y<0){
+      endChance();
     }
   }
 
+  // Draw hearts sparkle
+  ctx.fillStyle="rgba(255,105,180,0.15)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // Ball
   ctx.beginPath();
   ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
-  ctx.fillStyle="#ec4899";
+  ctx.fillStyle="#ff4da6";
   ctx.fill();
 
-  pins.forEach(p=>{
-    if (!p.hit && collide(ball,p)) {
-      p.hit = true;
-      p.vx = ball.vx * 1.5;
-      p.vy = ball.vy * 1.5;
-      p.angle = Math.random();
-    }
-    if (p.hit) {
-      p.x += p.vx;
-      p.y += p.vy;
-      p.vy += 0.25;
-      p.angle += p.vx*0.03;
-    }
-    drawPin(p);
-  });
+  // Pins
+  pins.forEach(drawPin);
 
   requestAnimationFrame(loop);
 }
 
-function resetBall() {
-  ball.x = canvas.width/2;
-  ball.y = canvas.height - 80;
-  ball.vx = ball.vy = ball.spin = 0;
-  ball.moving = false;
+function endChance(){
+  resetBall();
+  resetPins();
+  chancesLeft--;
+
+  if(chancesLeft===0){
+    chancesLeft=CHANCES_PER_PLAYER;
+    currentPlayer=(currentPlayer+1)%2;
+
+    if(currentPlayer===0){
+      round++;
+      if(round>MAX_ROUNDS){
+        document.getElementById("info").innerHTML=
+          `🏆 Game Over 💕<br>
+           ${scores[0]===scores[1]?"It's a Tie 💞":
+           scores[0]>scores[1]?players[0]+" Wins ❤️":players[1]+" Wins 💖"}`;
+        return;
+      }
+    }
+  }
+  updateInfo();
 }
 
 loop();
