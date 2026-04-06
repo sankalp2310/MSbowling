@@ -1,166 +1,228 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
 <title>Bowling Lane 🎳</title>
 
 <style>
-body {
+html, body {
   margin: 0;
+  padding: 0;
+  height: 100%;
   background: linear-gradient(#7f1d1d, #1f2937);
-  color: white;
   font-family: Arial, sans-serif;
+  color: white;
+  overscroll-behavior: none;
+}
+
+#screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+#setup {
+  padding: 12px;
   text-align: center;
 }
+
+input {
+  padding: 8px;
+  margin: 4px;
+  width: 42%;
+  border-radius: 6px;
+  border: none;
+}
+
+button {
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: none;
+  background: #ec4899;
+  color: white;
+  font-size: 16px;
+}
+
 canvas {
-  background: #a16207;
-  display: block;
-  margin: auto;
-  border-radius: 16px;
+  flex: 1;
+  width: 100%;
   touch-action: none;
+  background: #a16207;
 }
 </style>
 </head>
 
 <body>
 
-<h1>🎳 Bowling Lane</h1>
-<p>Pull the ball down & release</p>
+<div id="screen">
 
-<canvas id="lane" width="360" height="600"></canvas>
+  <!-- PLAYER INPUT -->
+  <div id="setup">
+    <input id="p1" placeholder="Player 1 name">
+    <input id="p2" placeholder="Player 2 name"><br>
+    <button onclick="startGame()">Start Bowling 🎳</button>
+  </div>
+
+  <!-- GAME -->
+  <canvas id="game"></canvas>
+
+</div>
 
 <script>
-const canvas = document.getElementById("lane");
+const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-let startX = 0, startY = 0;
-let dragging = false;
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight - document.getElementById("setup").offsetHeight;
+}
+window.addEventListener("resize", resize);
+resize();
 
-const ball = {
-  x: 180,
-  y: 520,
-  r: 14,
+/* GAME STATE */
+let names = ["Player 1", "Player 2"];
+let currentPlayer = 0;
+
+let ball = {
+  x: canvas.width / 2,
+  y: canvas.height - 80,
+  r: 16,
   vx: 0,
   vy: 0,
-  spinning: 0,
+  spin: 0,
   moving: false
 };
 
-const pins = [];
+let pins = [];
+let dragging = false;
+let startX = 0, startY = 0;
 
+/* PINS */
 function resetPins() {
-  pins.length = 0;
-  const rows = [
-    [180,90],
-    [165,115],[195,115],
-    [150,140],[180,140],[210,140],
-    [135,165],[165,165],[195,165],[225,165]
+  pins = [];
+  const layout = [
+    [0,0],
+    [-20,20],[20,20],
+    [-40,40],[0,40],[40,40],
+    [-60,60],[-20,60],[20,60],[60,60]
   ];
-  rows.forEach(p=>pins.push({
-    x:p[0], y:p[1],
-    vx:0, vy:0,
-    angle:0,
-    hit:false
-  }));
+  layout.forEach(p=>{
+    pins.push({
+      x: canvas.width/2 + p[0],
+      y: 80 + p[1],
+      vx: 0,
+      vy: 0,
+      angle: 0,
+      hit: false
+    });
+  });
+}
+
+function startGame() {
+  names[0] = document.getElementById("p1").value || "Player 1";
+  names[1] = document.getElementById("p2").value || "Player 2";
+  document.getElementById("setup").style.display = "none";
+  resetPins();
 }
 
 resetPins();
 
+/* TOUCH CONTROLS */
 canvas.addEventListener("touchstart", e=>{
-  const t=e.touches[0];
-  startX=t.clientX-canvas.offsetLeft;
-  startY=t.clientY-canvas.offsetTop;
-  dragging=true;
+  e.preventDefault();
+  if (ball.moving) return;
+  dragging = true;
+  const t = e.touches[0];
+  startX = t.clientX;
+  startY = t.clientY;
 });
 
 canvas.addEventListener("touchend", e=>{
-  if(!dragging) return;
-  dragging=false;
-
-  const t=e.changedTouches[0];
-  const endX=t.clientX-canvas.offsetLeft;
-  const endY=t.clientY-canvas.offsetTop;
-
-  ball.vy=(startY-endY)*0.15;
-  ball.vx=(startX-endX)*0.08;
-  ball.spinning=ball.vx*0.02;
-  ball.moving=true;
+  e.preventDefault();
+  if (!dragging) return;
+  dragging = false;
+  const t = e.changedTouches[0];
+  const dx = startX - t.clientX;
+  const dy = startY - t.clientY;
+  ball.vx = dx * 0.12;
+  ball.vy = dy * 0.2;
+  ball.spin = dx * 0.005;
+  ball.moving = true;
 });
 
-function collide(b,p){
-  const dx=b.x-p.x;
-  const dy=b.y-p.y;
+/* PHYSICS */
+function collide(b,p) {
+  const dx=b.x-p.x, dy=b.y-p.y;
   return Math.sqrt(dx*dx+dy*dy)<b.r+10;
 }
 
+/* DRAW PIN */
 function drawPin(p){
   ctx.save();
   ctx.translate(p.x,p.y);
   ctx.rotate(p.angle);
   ctx.fillStyle="white";
   ctx.beginPath();
-  ctx.moveTo(-6,10);
-  ctx.lineTo(6,10);
-  ctx.lineTo(4,-10);
-  ctx.lineTo(-4,-10);
-  ctx.closePath();
+  ctx.moveTo(-5,12);
+  ctx.lineTo(5,12);
+  ctx.lineTo(3,-14);
+  ctx.lineTo(-3,-14);
   ctx.fill();
-
   ctx.fillStyle="red";
-  ctx.fillRect(-6,-6,12,2);
+  ctx.fillRect(-5,-6,10,2);
   ctx.restore();
 }
 
-function update(){
-  ctx.clearRect(0,0,360,600);
+/* MAIN LOOP */
+function loop() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // Ball motion
-  if(ball.moving){
-    ball.x+=ball.vx;
-    ball.y+=ball.vy;
-    ball.vy*=0.985;
-    ball.vx+=ball.spinning;
-    ball.spinning*=0.98;
+  if (ball.moving) {
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+    ball.vx += ball.spin;
+    ball.vy *= 0.985;
+    ball.spin *= 0.96;
 
-    if(ball.y<0){ reset(); }
+    if (ball.y < 0) {
+      resetBall();
+    }
   }
 
-  // Ball
   ctx.beginPath();
   ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
   ctx.fillStyle="#ec4899";
   ctx.fill();
 
-  // Pins
   pins.forEach(p=>{
-    if(!p.hit && collide(ball,p)){
-      p.hit=true;
-      p.vx=ball.vx*2;
-      p.vy=ball.vy*2;
-      p.angle=Math.random()*1;
+    if (!p.hit && collide(ball,p)) {
+      p.hit = true;
+      p.vx = ball.vx * 1.5;
+      p.vy = ball.vy * 1.5;
+      p.angle = Math.random();
     }
-    if(p.hit){
-      p.x+=p.vx;
-      p.y+=p.vy;
-      p.vy+=0.2;
-      p.angle+=p.vx*0.05;
+    if (p.hit) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.25;
+      p.angle += p.vx*0.03;
     }
     drawPin(p);
   });
 
-  requestAnimationFrame(update);
+  requestAnimationFrame(loop);
 }
 
-function reset(){
-  ball.x=180; ball.y=520;
-  ball.vx=ball.vy=ball.spinning=0;
-  ball.moving=false;
-  resetPins();
+function resetBall() {
+  ball.x = canvas.width/2;
+  ball.y = canvas.height - 80;
+  ball.vx = ball.vy = ball.spin = 0;
+  ball.moving = false;
 }
 
-update();
+loop();
 </script>
 
 </body>
 </html>
-``
