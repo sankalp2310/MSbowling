@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Love Lane Bowling 🎳</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(#7f1d1d, #1f2937);
+      color: white;
+      text-align: center;
+    }
+    .lane {
+      background: #a16207;
+      padding: 15px;
+      width: 260px;
+      margin: 20px auto;
+      border-radius: 15px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .pin {
+      width: 20px;
+      height: 35px;
+      background: pink;
+      margin: 5px;
+      border-radius: 4px;
+    }
+    button {
+      font-size: 40px;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+    .scores {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 10px;
+    }
+    .active {
+      font-weight: bold;
+      color: #f9a8d4;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>🎳 Love Lane Bowling</h1>
+  <p id="frame">Frame 1 / 10</p>
+
+  <div class="lane" id="lane"></div>
+
+  <button onclick="roll()">🎳</button>
+  <p id="msg">Tap the ball to roll 💕</p>
+
+  <div class="scores">
+    <div id="p0" class="active">❤️ Player A: 0</div>
+    <div id="p1">💖 Player B: 0</div>
+  </div>
+
+  <script>
+    let players = ["❤️ Player A", "💖 Player B"];
+    let scores = [0, 0];
+    let turn = 0;
+    let frame = 1;
+    let pins = 10;
+
+    function drawPins() {
+      const lane = document.getElementById("lane");
+      lane.innerHTML = "";
+      for (let i = 0; i < pins; i++) {
+        const pin = document.createElement("div");
+        pin.className = "pin";
+        lane.appendChild(pin);
+      }
+    }
+
+    function roll() {
+      if (frame > 10) return;
+
+      const hit = Math.floor(Math.random() * (pins + 1));
+      scores[turn] += hit;
+      pins -= hit;
+
+      document.getElementById("msg").innerText =
+        hit === 10 ? "💥 Strike! Love hit!" : `💕 Knocked ${hit} pin(s)!`;
+
+      if (pins === 0 || hit === 10) {
+        pins = 10;
+        turn = (turn + 1) % 2;
+        if (turn === 0) frame++;
+      }
+
+      updateUI();
+    }
+
+    function updateUI() {
+      drawPins();
+      document.getElementById("frame").innerText = `Frame ${frame} / 10`;
+
+      players.forEach((_, i) => {
+        document.getElementById(`p${i}`).innerText =
+          `${players[i]}: ${scores[i]}`;
+        document.getElementById(`p${i}`).className =
+          i === turn ? "active" : "";
+      });
+
+      if (frame > 10) {
+        document.getElementById("msg").innerText =
+          scores[0] === scores[1]
+            ? "💞 It's a Tie!"
+            : (scores[0] > scores[1] ? players[0] : players[1]) + " Wins 🏆";
+      }
+    }
+
+    drawPins();
+  </script>
+
+</body>
+</html>
